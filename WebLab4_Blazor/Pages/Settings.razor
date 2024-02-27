@@ -1,0 +1,75 @@
+@page "/settings"
+@inject IJSRuntime JSRuntime
+
+<div class="theme-container">
+    <h3>Внешний вид</h3>
+    <div class="theme-options">
+        <button class="theme-option light" @onclick='() => ToggleTheme("light")'>
+        </button>
+        <button class="theme-option dark" @onclick='() => ToggleTheme("dark")'>
+        </button>
+    </div>
+</div>
+
+@code {
+    private void ToggleTheme(string theme)
+    {
+        SetThemeAsync(theme);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var userTheme = await GetUserThemeAsync() ?? "light";
+            await SetThemeAsync(userTheme);
+        }
+    }
+
+    private async Task SetThemeAsync(string theme)
+    {
+        await JSRuntime.InvokeVoidAsync("BlazorExtensions.SetTheme", theme);
+    }
+
+    private async Task<string> GetUserThemeAsync()
+    {
+        return await JSRuntime.InvokeAsync<string>("localStorage.getItem", "user-theme");
+    }
+}
+
+<style>
+    .theme-container {
+        width: 100%;
+        margin: 100px auto;
+        padding: 20px;
+        border-radius: 10px;
+        color: var(--text-color);
+        text-align: center;
+    }
+
+    .theme-options {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .theme-option {
+        border: 2px solid #A39F9B;
+        border-radius: 4px;
+        padding: 10px 20px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        width:340px;
+        height:200px;
+    }
+    .dark{
+        background-color: #272727;
+    }
+    
+    .light{
+        background-color: #fff;
+    }
+    
+</style>

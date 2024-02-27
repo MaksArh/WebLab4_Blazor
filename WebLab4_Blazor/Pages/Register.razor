@@ -1,0 +1,117 @@
+@page "/register"
+@using Blazored.LocalStorage
+@inject HttpClient httpClient
+@inject NavigationManager navigationManager
+@inject ILocalStorageService localStorage
+@inject IJSRuntime JSRuntime
+
+
+<div class="login-container">
+    <h3>Регистрация</h3>
+    <div class="input-group">
+        <input @bind="username" class="input-field" placeholder="Логин" />
+    </div>
+    <div class="input-group">
+        <input type="password" @bind="password" class="input-field" placeholder="Пароль" />
+    </div>
+    <button @onclick="RegisterUser" class="login-button">Зарегистрироваться</button>
+</div>
+
+@code {
+    private string username;
+    private string password;
+    private bool isUserLoggedIn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isUserLoggedIn = await localStorage.GetItemAsync<bool>("isUserLoggedIn");
+        if (isUserLoggedIn)
+        {
+            navigationManager.NavigateTo("/connect");
+        }
+    }
+
+    private async Task RegisterUser()
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Пожалуйста, введите имя пользователя и пароль.");
+            return;
+        }
+
+        var success = await RegisterUserAsync(username, password);
+        if (success)
+        {
+            navigationManager.NavigateTo("/login");
+        }
+    }
+
+    private async Task<bool> RegisterUserAsync(string username, string password)
+    {
+        var userData = new { name = username, password = password };
+        var json = System.Text.Json.JsonSerializer.Serialize(userData);
+        var data = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        try
+        {
+            var response = await httpClient.PostAsync("http://localhost:5000/users/register", data);
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при регистрации: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при подключении: {ex.Message}");
+        }
+
+        return false;
+    }
+}
+
+<style>
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 20px;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+}
+
+.login-container h3 {
+    margin-bottom: 30px;
+    color:var(--text-color);
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-field {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    margin-bottom: 15px;
+}
+
+.login-button {
+    width: calc(100% - 20px);
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+    margin-bottom: 15px;
+}
+</style>

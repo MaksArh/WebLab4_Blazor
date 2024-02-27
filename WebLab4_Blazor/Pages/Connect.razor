@@ -1,0 +1,76 @@
+@page "/connect"
+@page "/"
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
+
+
+<div class="login-container">
+    <h3>Коннект к каналу</h3>
+    <div class="input-group">
+        <input @bind="tgapi" class="input-field" placeholder="Введите Api" />
+    </div>
+    <div class="input-group">
+        <input @bind="tgtoken" class="input-field" placeholder="Введите ID канала" />
+    </div>
+    <button @onclick="SaveData" class="login-button">Подключиться</button>
+</div>
+
+@code {
+    private string tgapi;
+    private string tgtoken;
+
+    private async Task SaveData()
+    {
+        await LocalStorage.SetItemAsStringAsync("tgapi", tgapi);
+        await LocalStorage.SetItemAsStringAsync("tgtoken", tgtoken);
+        await ShowMessageBox("Данные сохранены");
+    }
+
+    private async Task ShowMessageBox(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+
+}
+
+
+<style>
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 20px;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+}
+
+.login-container h3 {
+    margin-bottom: 30px;
+    color:var(--text-color);
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-field {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    margin-bottom: 15px;
+}
+
+.login-button {
+    width: calc(100% - 20px);
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+</style>

@@ -1,0 +1,57 @@
+@using Blazored.LocalStorage
+@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+
+<div class="page">
+    <div class="main">
+        @Body
+    </div>
+    @if (!IsLoginPage() && !IsRegisterPage())
+    {
+        <div class="bottom-navbar">
+            <NavLink class="nav-link" href="/connect"><img src="img/user.svg" alt="user" class="icon"/></NavLink>
+            <NavLink class="nav-link" href="/message"><img src="img/smile.svg" alt="smile" class="icon"/></NavLink>
+            <NavLink class="nav-link" href="/settings"><img src="img/settings.svg" alt="settings" class="icon"/></NavLink>
+        </div>
+    }
+</div>
+
+<style>
+    .bottom-navbar {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+    }
+    
+    .icon {
+        width: 75px; 
+        height: 75px; 
+    }
+</style>
+
+
+@code {
+    [Inject] protected NavigationManager NavigationManager { get; set; }
+    [Inject] protected ILocalStorageService LocalStorage { get; set; }
+    private bool IsLoginPage() => NavigationManager.Uri.EndsWith("/login");
+    private bool IsRegisterPage() => NavigationManager.Uri.EndsWith("/register");
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var isUserLoggedIn = await LocalStorage.GetItemAsync<bool>("isUserLoggedIn");
+        if (!isUserLoggedIn && NavigationManager.Uri.Contains("/login") == false)
+        {
+            NavigationManager.NavigateTo("/login");
+        }
+        
+        var userTheme = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "user-theme");
+        if (!string.IsNullOrEmpty(userTheme))
+        {
+            await JSRuntime.InvokeVoidAsync("BlazorExtensions.SetTheme", userTheme);
+        }
+    }
+    
+}

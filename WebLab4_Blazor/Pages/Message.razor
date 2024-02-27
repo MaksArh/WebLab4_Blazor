@@ -1,0 +1,144 @@
+@page "/message"
+@using System.Net.Http.Headers
+@inject IJSRuntime JSRuntime
+@inject HttpClient HttpClient
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+
+<div class="publisher-container">
+    <h3>Отправка сообщения</h3>
+
+    <EditForm Model="@messageModel" OnValidSubmit="HandleSubmit">
+        <InputText @bind-Value="messageModel.Text" class="input-field" placeholder="Ваше сообщение" />
+        <InputFile OnChange="HandleFileSelected" class="input-field" />
+        
+        <input type="datetime-local" @bind="messageModel.ScheduleDate" class="input-field" />
+
+        <button @onclick="HandleSubmit" class="publish-button">Отправить</button>
+    </EditForm>
+
+    @if (scheduled)
+    {
+        <p>Сообщение запланировано на отправку: @messageModel.ScheduleDate.ToString("g")</p>
+    }
+</div>
+
+
+
+
+@code {
+    private MessageModel messageModel = new();
+    private bool scheduled = false;
+    private IBrowserFile file;
+    
+    protected override void OnInitialized()
+    {
+        messageModel.ScheduleDate = DateTime.Now;
+    }
+
+    private void HandleSubmit()
+    {
+        var now = DateTime.Now;
+        var delay = messageModel.ScheduleDate - now;
+        if (delay.TotalMilliseconds > 0)
+        {
+            var timer = new System.Timers.Timer(delay.TotalMilliseconds);
+            timer.Elapsed += async (sender, args) =>
+            {
+                timer.Stop();
+                await SendMessageAsync();
+            };
+            timer.Start();
+            scheduled = true;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        file = e.File;
+    }
+    
+    
+    private async Task SendMessageAsync()
+    {
+        string yourBotToken = await LocalStorage.GetItemAsStringAsync("tgapi");
+        string chatId = await LocalStorage.GetItemAsStringAsync("tgtoken");
+
+        if (file == null)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Файл не выбран.");
+            return;
+        }
+
+        var requestContent = new MultipartFormDataContent();
+        requestContent.Add(new StringContent(chatId), "chat_id");
+        requestContent.Add(new StringContent(messageModel.Text ?? ""), "caption");
+
+        try
+        {
+            var streamContent = new StreamContent(file.OpenReadStream()); // Ограничение в 10MB
+            streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            requestContent.Add(streamContent, "photo", file.Name);
+
+            string url = $"https://api.telegram.org/bot{yourBotToken}/sendPhoto";
+            var response = await HttpClient.PostAsync(url, requestContent);
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Сообщение успешно отправлено.");
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при отправке сообщения. Статус: {response.StatusCode}. Ответ: {errorResponse}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Произошла ошибка: {ex.Message}");
+        }
+    }
+
+    
+
+    class MessageModel
+    {
+        public string Text { get; set; }
+        public DateTime ScheduleDate { get; set; }
+    }
+}
+
+<style>
+    .publisher-container {
+        width: 100%;
+        max-width: 400px;
+        margin: 100px auto;
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+    }
+
+    .publisher-container h3 {
+        margin-bottom: 20px;
+        color:var(--text-color);
+    }
+
+    .input-field {
+       width: 100%;
+       padding: 10px;
+       border-radius: 5px;
+       border: none;
+       margin-bottom: 15px;
+    }
+    
+    .publish-button {
+        width: calc(100% - 20px);
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        background-color: var(--primary-color);
+        color: white;
+        cursor: pointer;
+        font-size: 16px;
+    }
+</style>

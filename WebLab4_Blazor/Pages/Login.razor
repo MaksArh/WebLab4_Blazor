@@ -1,0 +1,129 @@
+@page "/login"
+@using Blazored.LocalStorage
+@inject HttpClient httpClient
+@inject ILocalStorageService localStorage
+@inject NavigationManager navigationManager
+@inject IJSRuntime JSRuntime
+
+
+@if (isUserLoggedIn)
+{
+    <RedirectToPage Url="/connect" />
+}
+else
+{
+    <div class="login-container">
+        <h3>Вход</h3>
+        <div class="input-group">
+            <input @bind="username" class="input-field" placeholder="Логин" />
+        </div>
+        <div class="input-group">
+            <input type="password" @bind="password" class="input-field" placeholder="Пароль" />
+        </div>
+        <button @onclick="LoginUser" class="login-button">Войти</button>
+         <button @onclick="RegisterUser" class="login-button">Зарегистрироваться</button>
+    </div>
+}
+
+@code {
+    private string username;
+    private string password;
+    private bool isUserLoggedIn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isUserLoggedIn = await localStorage.GetItemAsync<bool>("isUserLoggedIn");
+    }
+    
+    private async Task RegisterUser()
+    {
+        navigationManager.NavigateTo("/register");
+    }
+
+    private async Task LoginUser()
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Пожалуйста, введите имя пользователя и пароль.");
+            return;
+        }
+
+        bool loginResult = await TryLoginAsync(username, password);
+        
+        if (loginResult)
+        {
+            await localStorage.SetItemAsync("isUserLoggedIn", true);
+            navigationManager.NavigateTo("/connect");
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Неверное имя пользователя или пароль.");
+        }
+    }
+
+    private async Task<bool> TryLoginAsync(string username, string password)
+    {
+        var userData = new { name = username, password = password };
+        var json = System.Text.Json.JsonSerializer.Serialize(userData);
+        var data = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        try
+        {
+            HttpResponseMessage response = await httpClient.PostAsync("http://localhost:5000/users", data);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при подключении: {ex.Message}");
+        }
+
+        return false;
+    }
+}
+
+
+<style>
+.login-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 20px;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+}
+
+.login-container h3 {
+    margin-bottom: 30px;
+    color:var(--text-color);
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-field {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    margin-bottom: 15px;
+}
+
+.login-button {
+    width: calc(100% - 20px);
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+    margin-bottom: 10px;
+}
+</style>
